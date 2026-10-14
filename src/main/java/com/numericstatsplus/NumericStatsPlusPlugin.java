@@ -14,7 +14,9 @@ import net.runelite.client.ui.overlay.OverlayManager;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Numeric Stats Plus"
+	name = "Numeric Stats Plus",
+	description = "HP, prayer, run and spec as numbers next to your character, with adjustable size and outline",
+	tags = {"hp", "prayer", "health", "numbers", "stats", "overlay"}
 )
 public class NumericStatsPlusPlugin extends Plugin
 {

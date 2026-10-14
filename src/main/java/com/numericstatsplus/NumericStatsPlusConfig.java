@@ -21,7 +21,7 @@ public interface NumericStatsPlusConfig extends Config
 	)
 	default PlayerStatsPositionType healthPosition()
 	{
-		return PlayerStatsPositionType.None;
+		return PlayerStatsPositionType.Right;
 	}
 
 	@ConfigItem(
@@ -32,7 +32,7 @@ public interface NumericStatsPlusConfig extends Config
 	)
 	default PlayerStatsPositionType prayerPosition()
 	{
-		return PlayerStatsPositionType.None;
+		return PlayerStatsPositionType.Right;
 	}
 
 	@ConfigItem(
