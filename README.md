@@ -4,7 +4,8 @@ Shows your HP, prayer, run energy and special attack as numbers next to your cha
 
 Based on [Player Numeric Stats](https://github.com/Cryslacks/player-numeric-stats) by Cryslacks.
 
-![Image of plugin in use](resources/plugin-in-use.png)
+![HP and prayer next to the player](images/numeric1.png)
+![HP, prayer, run energy and spec in a large outlined font](images/numeric2.png)
 
 ## Features
 
@@ -24,6 +25,10 @@ Based on [Player Numeric Stats](https://github.com/Cryslacks/player-numeric-stat
 **Warnings**
 - Pick the HP and prayer levels to warn at
 - Warning color, solid or flashing
+
+## Settings
+
+![Numeric Stats Plus settings panel](images/settings.png)
 
 ## Changes from Player Numeric Stats
 - Adjustable font size, font, outline and vertical offset
