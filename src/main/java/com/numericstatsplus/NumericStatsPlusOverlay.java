@@ -29,6 +29,7 @@ import net.runelite.api.Perspective;
 import net.runelite.api.Player;
 import net.runelite.api.Point;
 import net.runelite.api.Skill;
+import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.gameval.VarPlayerID;
@@ -60,6 +61,8 @@ class NumericStatsPlusOverlay extends Overlay
 	 */
 	private static final int RIGHT_SIDE_GAP = 16;
 	private static final int ICON_GAP = 2;
+	// On-screen width of one game tile that the offsets are measured against when following zoom.
+	private static final double REFERENCE_TILE_PIXELS = 64.0;
 
 	private Color COLOR_HEALTH_MAX = Color.green;
 	private Color COLOR_HEALTH_MIN = Color.red;
@@ -99,6 +102,7 @@ class NumericStatsPlusOverlay extends Overlay
 	private int offsetRight = 5;
 	private int offsetVertical = 0;
 	private int outlineWidth = 0;
+	private boolean followZoom = true;
 
 	private boolean onlyInCombat = false;
 	private int lowHealthThreshold = 0;
@@ -149,6 +153,8 @@ class NumericStatsPlusOverlay extends Overlay
 			return null;
 		}
 
+		final double zoom = followZoom ? zoomScale(player.getLocalLocation()) : 1.0;
+
 		graphics.setFont(overlayFont);
 		// The RuneScape fonts are pixel fonts; scaled past 16px they show gaps unless smoothed.
 		Object previousTextHint = graphics.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);
@@ -181,27 +187,27 @@ class NumericStatsPlusOverlay extends Overlay
 				healthColor = warningColorFor(healthColor);
 			}
 			BufferedImage icon = displayOverload && hasOverload ? itemIcon(ItemID.RAIDS_VIAL_OVERLOAD_STRONG_4) : null;
-			renderStat(graphics, fm, anchor, String.valueOf(healthCurrent), healthColor, icon, healthLeft ? renderIxLeft++ : renderIxRight++, healthLeft);
+			renderStat(graphics, fm, anchor, zoom, String.valueOf(healthCurrent), healthColor, icon, healthLeft ? renderIxLeft++ : renderIxRight++, healthLeft);
 		}
 		if (renderPrayer)
 		{
 			BufferedImage icon = displayPoT && hasPoT ? itemIcon(ItemID.RAIDS_VIAL_PRAYER_STRONG_4) : null;
 			Color prayerColor = prayerWarning ? warningColorFor(COLOR_PRAYER) : COLOR_PRAYER;
-			renderStat(graphics, fm, anchor, String.valueOf(prayerCurrent), prayerColor, icon, prayerLeft ? renderIxLeft++ : renderIxRight++, prayerLeft);
+			renderStat(graphics, fm, anchor, zoom, String.valueOf(prayerCurrent), prayerColor, icon, prayerLeft ? renderIxLeft++ : renderIxRight++, prayerLeft);
 		}
 		if (renderStamina)
 		{
 			BufferedImage icon = displayStam && runEnergyBoosted ? itemIcon(ItemID._4DOSESTAMINA) : null;
-			renderStat(graphics, fm, anchor, String.valueOf(runEnergy), runEnergyBoosted ? COLOR_STAMINA_BOOSTED : COLOR_STAMINA, icon, staminaLeft ? renderIxLeft++ : renderIxRight++, staminaLeft);
+			renderStat(graphics, fm, anchor, zoom, String.valueOf(runEnergy), runEnergyBoosted ? COLOR_STAMINA_BOOSTED : COLOR_STAMINA, icon, staminaLeft ? renderIxLeft++ : renderIxRight++, staminaLeft);
 		}
 		else if (displayStam && runEnergyBoosted)
 		{
 			// Run energy is hidden, so show the stamina icon on its own row.
-			renderStat(graphics, fm, anchor, null, null, itemIcon(ItemID._4DOSESTAMINA), renderIxLeft++, true);
+			renderStat(graphics, fm, anchor, zoom, null, null, itemIcon(ItemID._4DOSESTAMINA), renderIxLeft++, true);
 		}
 		if (renderSpec)
 		{
-			renderStat(graphics, fm, anchor, String.valueOf(specEnergy), COLOR_SPEC, null, specLeft ? renderIxLeft++ : renderIxRight++, specLeft);
+			renderStat(graphics, fm, anchor, zoom, String.valueOf(specEnergy), COLOR_SPEC, null, specLeft ? renderIxLeft++ : renderIxRight++, specLeft);
 		}
 		if (renderVeng && vengActive)
 		{
@@ -223,11 +229,14 @@ class NumericStatsPlusOverlay extends Overlay
 	 * Draws one stat row. Left-side text is right-aligned against the player so bigger fonts grow outwards;
 	 * an optional icon sits on the outer side of the text.
 	 */
-	private void renderStat(Graphics2D graphics, FontMetrics fm, Point anchor, String text, Color color, BufferedImage icon, int renderIx, boolean left)
+	private void renderStat(Graphics2D graphics, FontMetrics fm, Point anchor, double zoom, String text, Color color, BufferedImage icon, int renderIx, boolean left)
 	{
-		int baseline = anchor.getY() + offsetVertical + fm.getHeight() * renderIx;
+		// Gaps from the player scale with zoom so the numbers stay put on the model; row spacing follows the font.
+		int baseline = anchor.getY() + (int) Math.round(offsetVertical * zoom) + fm.getHeight() * renderIx;
 		int textWidth = text == null ? 0 : fm.stringWidth(text);
-		int textX = left ? anchor.getX() - offsetLeft - textWidth : anchor.getX() + offsetRight + RIGHT_SIDE_GAP;
+		int textX = left
+			? anchor.getX() - (int) Math.round(offsetLeft * zoom) - textWidth
+			: anchor.getX() + (int) Math.round((offsetRight + RIGHT_SIDE_GAP) * zoom);
 
 		if (text != null)
 		{
@@ -241,6 +250,26 @@ class NumericStatsPlusOverlay extends Overlay
 			int iconY = baseline - icon.getHeight();
 			OverlayUtil.renderImageLocation(graphics, new Point(iconX, iconY), icon);
 		}
+	}
+
+	/**
+	 * How large the scene is drawn right now, relative to REFERENCE_TILE_PIXELS. Uses the horizontal screen
+	 * distance covered by one tile in both directions, which stays the same as the camera turns or tilts.
+	 */
+	private double zoomScale(LocalPoint location)
+	{
+		int plane = client.getTopLevelWorldView().getPlane();
+		Point origin = Perspective.localToCanvas(client, location, plane, 0);
+		Point alongX = Perspective.localToCanvas(client, location.dx(Perspective.LOCAL_TILE_SIZE), plane, 0);
+		Point alongY = Perspective.localToCanvas(client, location.dy(Perspective.LOCAL_TILE_SIZE), plane, 0);
+		if (origin == null || alongX == null || alongY == null)
+		{
+			return 1.0;
+		}
+		double dx1 = alongX.getX() - origin.getX();
+		double dx2 = alongY.getX() - origin.getX();
+		double tilePixels = Math.sqrt(dx1 * dx1 + dx2 * dx2);
+		return tilePixels > 0 ? tilePixels / REFERENCE_TILE_PIXELS : 1.0;
 	}
 
 	// Solid warning color, or blinking between it and the normal color about twice a second.
@@ -360,6 +389,7 @@ class NumericStatsPlusOverlay extends Overlay
 		this.offsetLeft = config.offsetLeft();
 		this.offsetVertical = config.offsetVertical();
 		this.outlineWidth = config.outlineWidth();
+		this.followZoom = config.followZoom();
 
 		this.onlyInCombat = config.onlyInCombat();
 		this.lowHealthThreshold = config.lowHealthThreshold();

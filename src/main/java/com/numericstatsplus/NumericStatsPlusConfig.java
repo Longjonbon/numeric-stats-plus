@@ -232,6 +232,18 @@ public interface NumericStatsPlusConfig extends Config
 		return 0;
 	}
 
+	@ConfigItem(
+			keyName = "followZoom",
+			name = "Follow zoom",
+			description = "Scale the offsets with camera zoom so the numbers stay in the same spot next to your character.",
+			position = 6,
+			section = textSection
+	)
+	default boolean followZoom()
+	{
+		return true;
+	}
+
 	// ---------- Warnings ----------
 
 	@Range(max = 255)
