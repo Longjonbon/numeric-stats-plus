@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.playerstats;
+package com.numericstatsplus;
 
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
@@ -52,7 +52,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
-class PlayerNumericStatsOverlay extends Overlay
+class NumericStatsPlusOverlay extends Overlay
 {
 
 	/**
@@ -71,7 +71,7 @@ class PlayerNumericStatsOverlay extends Overlay
 
 	private final Client client;
 	private final SpriteManager spriteManager;
-	private final PlayerNumericStatsConfig config;
+	private final NumericStatsPlusConfig config;
 	private final ItemManager itemManager;
 
 	// Potion icons resized to the current font, so they are not rescaled every frame.
@@ -100,8 +100,8 @@ class PlayerNumericStatsOverlay extends Overlay
 	private int outlineWidth = 0;
 
 	@Inject
-	private PlayerNumericStatsOverlay(
-		Client client, SpriteManager spriteManager, PlayerNumericStatsConfig config, ItemManager itemManager
+	private NumericStatsPlusOverlay(
+		Client client, SpriteManager spriteManager, NumericStatsPlusConfig config, ItemManager itemManager
 	)
 	{
 		this.client = client;

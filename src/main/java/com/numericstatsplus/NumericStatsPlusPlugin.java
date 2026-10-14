@@ -1,4 +1,4 @@
-package com.playerstats;
+package com.numericstatsplus;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
@@ -14,9 +14,9 @@ import net.runelite.client.ui.overlay.OverlayManager;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Player numeric stats"
+	name = "Numeric Stats Plus"
 )
-public class PlayerNumericStatsPlugin extends Plugin
+public class NumericStatsPlusPlugin extends Plugin
 {
 	@Inject
 	private Client client;
@@ -25,36 +25,36 @@ public class PlayerNumericStatsPlugin extends Plugin
 	private OverlayManager overlayManager;
 
 	@Inject
-	private PlayerNumericStatsOverlay playerNumericStatsOverlay;
+	private NumericStatsPlusOverlay numericStatsPlusOverlay;
 
 	@Inject
-	private PlayerNumericStatsConfig config;
+	private NumericStatsPlusConfig config;
 
 	@Override
 	protected void startUp() throws Exception
 	{
-		overlayManager.add(playerNumericStatsOverlay);
+		overlayManager.add(numericStatsPlusOverlay);
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
-		overlayManager.remove(playerNumericStatsOverlay);
+		overlayManager.remove(numericStatsPlusOverlay);
 	}
 
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (event.getGroup().equals("playernumericstats"))
+		if (event.getGroup().equals("numericstatsplus"))
 		{
-			playerNumericStatsOverlay.updateConfig();
+			numericStatsPlusOverlay.updateConfig();
 		}
 	}
 
 	@Provides
-	PlayerNumericStatsConfig provideConfig(ConfigManager configManager)
+	NumericStatsPlusConfig provideConfig(ConfigManager configManager)
 	{
-		return configManager.getConfig(PlayerNumericStatsConfig.class);
+		return configManager.getConfig(NumericStatsPlusConfig.class);
 	}
 }

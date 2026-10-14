@@ -1,4 +1,4 @@
-package com.playerstats;
+package com.numericstatsplus;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

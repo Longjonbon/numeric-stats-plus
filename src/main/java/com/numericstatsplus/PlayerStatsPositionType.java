@@ -1,4 +1,4 @@
-package com.playerstats;
+package com.numericstatsplus;
 
 public enum PlayerStatsPositionType {
     None,

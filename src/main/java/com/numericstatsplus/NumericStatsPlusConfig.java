@@ -1,4 +1,4 @@
-package com.playerstats;
+package com.numericstatsplus;
 
 import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Units;
@@ -10,8 +10,8 @@ import net.runelite.client.config.Range;
 
 import java.awt.*;
 
-@ConfigGroup("playernumericstats")
-public interface PlayerNumericStatsConfig extends Config
+@ConfigGroup("numericstatsplus")
+public interface NumericStatsPlusConfig extends Config
 {
 	@ConfigItem(
 			keyName = "healthPosition",

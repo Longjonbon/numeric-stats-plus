@@ -23,7 +23,7 @@ dependencies {
 	testImplementation group: 'net.runelite', name:'jshell', version: runeLiteVersion
 }
 
-group = 'com.playerstats'
+group = 'com.numericstatsplus'
 version = '1.0-SNAPSHOT'
 
 tasks.withType(JavaCompile) {
@@ -34,7 +34,7 @@ tasks.withType(JavaCompile) {
 // Opens a RuneLite dev client with Player Numeric Stats loaded
 task run(type: JavaExec) {
 	classpath = sourceSets.test.runtimeClasspath
-	mainClass = 'com.playerstats.PlayerNumericStatsPluginTest'
+	mainClass = 'com.numericstatsplus.NumericStatsPlusPluginTest'
 	jvmArgs '-ea'
 	args '--developer-mode'
 }
