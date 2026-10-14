@@ -1,9 +1,12 @@
 package com.playerstats;
 
 import net.runelite.client.config.Alpha;
+import net.runelite.client.config.Units;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.Range;
 
 import java.awt.*;
 
@@ -190,5 +193,66 @@ public interface PlayerNumericStatsConfig extends Config
 	default Color specColor()
 	{
 		return Color.yellow;
+	}
+
+	@ConfigSection(
+			name = "Text",
+			description = "Size, font and outline of the numbers.",
+			position = 16
+	)
+	String textSection = "textSection";
+
+	@Range(min = 8, max = 64)
+	@Units(Units.PIXELS)
+	@ConfigItem(
+			keyName = "fontSize",
+			name = "Font size",
+			description = "Size of the numbers. Icons scale with it.",
+			position = 17,
+			section = textSection
+	)
+	default int fontSize()
+	{
+		return 16;
+	}
+
+	@ConfigItem(
+			keyName = "fontType",
+			name = "Font",
+			description = "Font used for the numbers.",
+			position = 18,
+			section = textSection
+	)
+	default PlayerStatsFontType fontType()
+	{
+		return PlayerStatsFontType.BOLD;
+	}
+
+	@Range(min = 0, max = 4)
+	@Units(Units.PIXELS)
+	@ConfigItem(
+			keyName = "outlineWidth",
+			name = "Outline width",
+			description = "Black outline around the numbers. 0 uses the original drop shadow.",
+			position = 19,
+			section = textSection
+	)
+	default int outlineWidth()
+	{
+		return 0;
+	}
+
+	@Range(min = -300, max = 300)
+	@Units(Units.PIXELS)
+	@ConfigItem(
+			keyName = "offsetVertical",
+			name = "Offset vertical",
+			description = "Moves the numbers down (positive) or up (negative).",
+			position = 20,
+			section = textSection
+	)
+	default int offsetVertical()
+	{
+		return 0;
 	}
 }

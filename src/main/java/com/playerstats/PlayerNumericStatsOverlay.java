@@ -24,18 +24,32 @@
  */
 package com.playerstats;
 
+import net.runelite.api.Client;
+import net.runelite.api.Perspective;
+import net.runelite.api.Player;
 import net.runelite.api.Point;
-import net.runelite.api.*;
+import net.runelite.api.Skill;
+import net.runelite.api.gameval.ItemID;
+import net.runelite.api.gameval.SpriteID;
+import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.ui.FontManager;
-import net.runelite.client.ui.overlay.*;
+import net.runelite.client.ui.overlay.Overlay;
+import net.runelite.client.ui.overlay.OverlayLayer;
+import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.OverlayUtil;
+import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.ColorUtil;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
 class PlayerNumericStatsOverlay extends Overlay
@@ -44,18 +58,26 @@ class PlayerNumericStatsOverlay extends Overlay
 	/**
 	 * This overlay is largely based on the plugin Party (PartyStatusOverlay.java), but with some small edits.
 	 */
-	private static Color COLOR_HEALTH_MAX = Color.green;
-	private static Color COLOR_HEALTH_MIN = Color.red;
-	private static Color COLOR_PRAYER = new Color(50, 200, 200);
-	private static Color COLOR_STAMINA = new Color(160, 124, 72);
-	private static Color COLOR_STAMINA_BOOSTED = new Color(220, 184, 132);
-	private static Color COLOR_SPEC = new Color(225, 225, 0);
-	private static Font OVERLAY_FONT = FontManager.getRunescapeBoldFont().deriveFont(16f);
+	private static final int RIGHT_SIDE_GAP = 16;
+	private static final int ICON_GAP = 2;
+
+	private Color COLOR_HEALTH_MAX = Color.green;
+	private Color COLOR_HEALTH_MIN = Color.red;
+	private Color COLOR_PRAYER = new Color(50, 200, 200);
+	private Color COLOR_STAMINA = new Color(160, 124, 72);
+	private Color COLOR_STAMINA_BOOSTED = new Color(220, 184, 132);
+	private Color COLOR_SPEC = new Color(225, 225, 0);
+	private Font overlayFont = FontManager.getRunescapeBoldFont().deriveFont(16f);
 
 	private final Client client;
 	private final SpriteManager spriteManager;
 	private final PlayerNumericStatsConfig config;
 	private final ItemManager itemManager;
+
+	// Potion icons resized to the current font, so they are not rescaled every frame.
+	private final Map<Integer, BufferedImage> iconCache = new ConcurrentHashMap<>();
+	private final Set<BufferedImage> watchedIcons = ConcurrentHashMap.newKeySet();
+	private int iconHeight = -1;
 
 	private boolean renderHealth = false;
 	private boolean renderPrayer = false;
@@ -74,6 +96,8 @@ class PlayerNumericStatsOverlay extends Overlay
 
 	private int offsetLeft = 15;
 	private int offsetRight = 5;
+	private int offsetVertical = 0;
+	private int outlineWidth = 0;
 
 	@Inject
 	private PlayerNumericStatsOverlay(
@@ -89,117 +113,136 @@ class PlayerNumericStatsOverlay extends Overlay
 
 		setLayer(OverlayLayer.UNDER_WIDGETS);
 		setPosition(OverlayPosition.DYNAMIC);
-		setPriority(OverlayPriority.HIGH);
+		setPriority(PRIORITY_HIGH);
 	}
 
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
 		Player player = client.getLocalPlayer();
+		if (player == null || player.getLocalLocation() == null)
+		{
+			return null;
+		}
+
+		Point anchor = Perspective.localToCanvas(client, player.getLocalLocation(), client.getTopLevelWorldView().getPlane(), player.getLogicalHeight());
+		if (anchor == null)
+		{
+			return null;
+		}
+
+		graphics.setFont(overlayFont);
+		// The RuneScape fonts are pixel fonts; scaled past 16px they show gaps unless smoothed.
+		Object previousTextHint = graphics.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);
+		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+		FontMetrics fm = graphics.getFontMetrics();
+		if (iconHeight != fm.getAscent())
+		{
+			iconHeight = fm.getAscent();
+			iconCache.clear();
+		}
 
 		int renderIxRight = 0;
 		int renderIxLeft = 0;
-		graphics.setFont(OVERLAY_FONT);
 
 		final int healthCurrent = client.getBoostedSkillLevel(Skill.HITPOINTS);
 		final int prayerCurrent = client.getBoostedSkillLevel(Skill.PRAYER);
 		final int healthMax = client.getRealSkillLevel(Skill.HITPOINTS);
 		final int runEnergy = (int) (client.getEnergy() / 100.0);
-		final int specEnergy = client.getVarpValue(VarPlayer.SPECIAL_ATTACK_PERCENT) / 10;
+		final int specEnergy = client.getVarpValue(VarPlayerID.SA_ENERGY) / 10;
 
-		final boolean vengActive = client.getVarbitValue(Varbits.VENGEANCE_ACTIVE) == 1;
-		final boolean runEnergyBoosted = client.getVarbitValue(Varbits.RUN_SLOWED_DEPLETION_ACTIVE) != 0;
-		final boolean hasPoT = client.getVarbitValue(5417) != 0; // Varbit of Prayer Enhance (+)
-		final boolean hasOverload = client.getVarbitValue(Varbits.COX_OVERLOAD_REFRESHES_REMAINING) != 0;
-
+		final boolean vengActive = client.getVarbitValue(VarbitID.VENGEANCE_REBOUND) == 1;
+		final boolean runEnergyBoosted = client.getVarbitValue(VarbitID.STAMINA_ACTIVE) != 0;
+		final boolean hasPoT = client.getVarbitValue(VarbitID.RAIDS_PRAYERENHANCE_TIMER) != 0;
+		final boolean hasOverload = client.getVarbitValue(VarbitID.RAIDS_OVERLOAD_TIMER) != 0;
 
 		if (renderHealth)
 		{
 			double healthRatio = Math.min(1.0, (double) healthCurrent / healthMax);
 			Color healthColor = ColorUtil.colorLerp(COLOR_HEALTH_MIN, COLOR_HEALTH_MAX, healthRatio);
-			renderPlayerOverlay(graphics, player, String.valueOf(healthCurrent), healthColor, healthLeft ? renderIxLeft++ : renderIxRight++, healthLeft);
-
-			if (displayOverload && hasOverload) {
-				BufferedImage overloadIcon = itemManager.getImage(20996);
-
-				if (overloadIcon != null)
-				{
-					BufferedImage overloadIconResized = rescale(overloadIcon, 18, 16);
-
-					renderPlayerOverlayNextToText(graphics, player, overloadIconResized, healthLeft ? renderIxLeft : renderIxRight, healthLeft);
-				}
-			}
+			BufferedImage icon = displayOverload && hasOverload ? itemIcon(ItemID.RAIDS_VIAL_OVERLOAD_STRONG_4) : null;
+			renderStat(graphics, fm, anchor, String.valueOf(healthCurrent), healthColor, icon, healthLeft ? renderIxLeft++ : renderIxRight++, healthLeft);
 		}
 		if (renderPrayer)
 		{
-			renderPlayerOverlay(graphics, player, String.valueOf(prayerCurrent), COLOR_PRAYER, prayerLeft ? renderIxLeft++ : renderIxRight++, prayerLeft);
-
-			if (displayPoT && hasPoT) {
-				BufferedImage potIcon = itemManager.getImage(20972);
-
-				if (potIcon != null)
-				{
-					BufferedImage potIconResized = rescale(potIcon, 18, 16);
-
-					renderPlayerOverlayNextToText(graphics, player, potIconResized, prayerLeft ? renderIxLeft : renderIxRight, prayerLeft);
-				}
-			}
+			BufferedImage icon = displayPoT && hasPoT ? itemIcon(ItemID.RAIDS_VIAL_PRAYER_STRONG_4) : null;
+			renderStat(graphics, fm, anchor, String.valueOf(prayerCurrent), COLOR_PRAYER, icon, prayerLeft ? renderIxLeft++ : renderIxRight++, prayerLeft);
 		}
 		if (renderStamina)
 		{
-			renderPlayerOverlay(graphics, player, String.valueOf(runEnergy), runEnergyBoosted ? COLOR_STAMINA_BOOSTED : COLOR_STAMINA, staminaLeft ? renderIxLeft++ : renderIxRight++, staminaLeft);
-
-			if (displayStam && runEnergyBoosted) {
-				BufferedImage stamIcon = itemManager.getImage(12625);
-
-				if (stamIcon != null)
-				{
-					BufferedImage stamIconResized = rescale(stamIcon, 18, 16);
-
-					renderPlayerOverlayNextToText(graphics, player, stamIconResized, staminaLeft ? renderIxLeft : renderIxRight, staminaLeft);
-				}
-			}
+			BufferedImage icon = displayStam && runEnergyBoosted ? itemIcon(ItemID._4DOSESTAMINA) : null;
+			renderStat(graphics, fm, anchor, String.valueOf(runEnergy), runEnergyBoosted ? COLOR_STAMINA_BOOSTED : COLOR_STAMINA, icon, staminaLeft ? renderIxLeft++ : renderIxRight++, staminaLeft);
+		}
+		else if (displayStam && runEnergyBoosted)
+		{
+			// Run energy is hidden, so show the stamina icon on its own row.
+			renderStat(graphics, fm, anchor, null, null, itemIcon(ItemID._4DOSESTAMINA), renderIxLeft++, true);
 		}
 		if (renderSpec)
 		{
-			renderPlayerOverlay(graphics, player, String.valueOf(specEnergy), COLOR_SPEC, specLeft ? renderIxLeft++ : renderIxRight++, specLeft);
+			renderStat(graphics, fm, anchor, String.valueOf(specEnergy), COLOR_SPEC, null, specLeft ? renderIxLeft++ : renderIxRight++, specLeft);
 		}
 		if (renderVeng && vengActive)
 		{
-			BufferedImage vengIcon = spriteManager.getSprite(SpriteID.SPELL_VENGEANCE_OTHER, 0);
+			BufferedImage vengIcon = spriteManager.getSprite(SpriteID.LunarMagicOn.VENGEANCE_OTHER, 0);
 			if (vengIcon != null)
 			{
 				renderPlayerOverlay(graphics, player, vengIcon);
 			}
 		}
 
+		if (previousTextHint != null)
+		{
+			graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, previousTextHint);
+		}
 		return null;
 	}
 
-	private void renderPlayerOverlay(Graphics2D graphics, Player player, String text, Color color, int renderIx, boolean left)
+	/**
+	 * Draws one stat row. Left-side text is right-aligned against the player so bigger fonts grow outwards;
+	 * an optional icon sits on the outer side of the text.
+	 */
+	private void renderStat(Graphics2D graphics, FontMetrics fm, Point anchor, String text, Color color, BufferedImage icon, int renderIx, boolean left)
 	{
-		Point point = Perspective.localToCanvas(client, player.getLocalLocation(), client.getPlane(), player.getLogicalHeight());
+		int baseline = anchor.getY() + offsetVertical + fm.getHeight() * renderIx;
+		int textWidth = text == null ? 0 : fm.stringWidth(text);
+		int textX = left ? anchor.getX() - offsetLeft - textWidth : anchor.getX() + offsetRight + RIGHT_SIDE_GAP;
 
-		if (point != null)
+		if (text != null)
 		{
-			FontMetrics fm = graphics.getFontMetrics();
-			int size = fm.getHeight();
-			int zOffset = size * renderIx;
-
-			int x;
-			if (left) {
-				x = point.getX() - size - offsetLeft;
-			} else {
-				x = point.getX() + size + offsetRight;
-			}
-
-			OverlayUtil.renderTextLocation(
-				graphics,
-				new Point(x, point.getY() + zOffset),
-				text,
-				color
-			);
+			renderText(graphics, textX, baseline, text, color);
 		}
+
+		if (icon != null)
+		{
+			int gap = text == null ? 0 : ICON_GAP;
+			int iconX = left ? textX - gap - icon.getWidth() : textX + textWidth + gap;
+			int iconY = baseline - icon.getHeight();
+			OverlayUtil.renderImageLocation(graphics, new Point(iconX, iconY), icon);
+		}
+	}
+
+	private void renderText(Graphics2D graphics, int x, int y, String text, Color color)
+	{
+		if (outlineWidth <= 0)
+		{
+			OverlayUtil.renderTextLocation(graphics, new Point(x, y), text, color);
+			return;
+		}
+
+		graphics.setColor(new Color(0, 0, 0, color.getAlpha()));
+		for (int dx = -outlineWidth; dx <= outlineWidth; dx++)
+		{
+			for (int dy = -outlineWidth; dy <= outlineWidth; dy++)
+			{
+				if ((dx != 0 || dy != 0) && dx * dx + dy * dy <= outlineWidth * outlineWidth + 1)
+				{
+					graphics.drawString(text, x + dx, y + dy);
+				}
+			}
+		}
+		graphics.setColor(color);
+		graphics.drawString(text, x, y);
 	}
 
 	private void renderPlayerOverlay(Graphics2D graphics, Player player, BufferedImage image)
@@ -210,37 +253,59 @@ class PlayerNumericStatsOverlay extends Overlay
 			OverlayUtil.renderImageLocation(graphics, textLocation, image);
 		}
 	}
-	private void renderPlayerOverlayNextToText(Graphics2D graphics, Player player, BufferedImage image, int renderIx, boolean left)
+
+	private BufferedImage itemIcon(int itemId)
 	{
-		Point point = Perspective.localToCanvas(client, player.getLocalLocation(), client.getPlane(), player.getLogicalHeight());
-		if (point != null)
+		BufferedImage cached = iconCache.get(itemId);
+		if (cached != null)
 		{
-
-			int size = OVERLAY_FONT.getSize();
-			int zOffset = size * (renderIx - 2);
-			int offsetFromText = -15;
-
-			int x;
-			if (left) {
-				x = point.getX() - size - offsetLeft + offsetFromText;
-			} else {
-				x = point.getX() + size + offsetRight + offsetFromText;
-			}
-
-			OverlayUtil.renderImageLocation(graphics, new Point(x, point.getY() + zOffset), image);
+			return cached;
 		}
+
+		AsyncBufferedImage source = itemManager.getImage(itemId);
+		if (source == null)
+		{
+			return null;
+		}
+		if (watchedIcons.add(source))
+		{
+			// Item images load in the background; rescale again once the real pixels arrive.
+			source.onLoaded(() -> iconCache.remove(itemId));
+		}
+
+		int height = Math.max(1, iconHeight);
+		int width = Math.max(1, Math.round(height * 18f / 16f));
+		BufferedImage resized = rescale(source, width, height);
+		iconCache.put(itemId, resized);
+		return resized;
 	}
 
 	private BufferedImage rescale(BufferedImage img, int newWidth, int newHeight)
 	{
-		Image tmp = img.getScaledInstance(newWidth, newHeight, Image.SCALE_SMOOTH);
 		BufferedImage imgResized = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
 
 		Graphics2D graphics2D = imgResized.createGraphics();
+		graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 		graphics2D.drawImage(img, 0, 0, newWidth, newHeight, null);
 		graphics2D.dispose();
 
 		return imgResized;
+	}
+
+	private static Font buildFont(PlayerStatsFontType type, int size)
+	{
+		switch (type)
+		{
+			case REGULAR:
+				return FontManager.getRunescapeFont().deriveFont((float) size);
+			case SMALL:
+				return FontManager.getRunescapeSmallFont().deriveFont((float) size);
+			case ARIAL:
+				return new Font("Arial", Font.BOLD, size);
+			case BOLD:
+			default:
+				return FontManager.getRunescapeBoldFont().deriveFont((float) size);
+		}
 	}
 
 	void updateConfig()
@@ -262,6 +327,10 @@ class PlayerNumericStatsOverlay extends Overlay
 
 		this.offsetRight = config.offsetRight();
 		this.offsetLeft = config.offsetLeft();
+		this.offsetVertical = config.offsetVertical();
+		this.outlineWidth = config.outlineWidth();
+
+		this.overlayFont = buildFont(config.fontType(), config.fontSize());
 
 		this.COLOR_HEALTH_MAX = config.maxHealthColor();
 		this.COLOR_HEALTH_MIN = config.minHealthColor();
