@@ -73,6 +73,7 @@ class NumericStatsPlusOverlay extends Overlay
 	private final SpriteManager spriteManager;
 	private final NumericStatsPlusConfig config;
 	private final ItemManager itemManager;
+	private final NumericStatsPlusPlugin plugin;
 
 	// Potion icons resized to the current font, so they are not rescaled every frame.
 	private final Map<Integer, BufferedImage> iconCache = new ConcurrentHashMap<>();
@@ -99,11 +100,19 @@ class NumericStatsPlusOverlay extends Overlay
 	private int offsetVertical = 0;
 	private int outlineWidth = 0;
 
+	private boolean onlyInCombat = false;
+	private int lowHealthThreshold = 0;
+	private int lowPrayerThreshold = 0;
+	private Color warningColor = Color.red;
+	private boolean warningFlash = true;
+
 	@Inject
 	private NumericStatsPlusOverlay(
-		Client client, SpriteManager spriteManager, NumericStatsPlusConfig config, ItemManager itemManager
+		Client client, SpriteManager spriteManager, NumericStatsPlusConfig config, ItemManager itemManager,
+		NumericStatsPlusPlugin plugin
 	)
 	{
+		this.plugin = plugin;
 		this.client = client;
 		this.spriteManager = spriteManager;
 		this.config = config;
@@ -121,6 +130,15 @@ class NumericStatsPlusOverlay extends Overlay
 	{
 		Player player = client.getLocalPlayer();
 		if (player == null || player.getLocalLocation() == null)
+		{
+			return null;
+		}
+
+		final int healthCurrent = client.getBoostedSkillLevel(Skill.HITPOINTS);
+		final int prayerCurrent = client.getBoostedSkillLevel(Skill.PRAYER);
+		final boolean healthWarning = lowHealthThreshold > 0 && healthCurrent <= lowHealthThreshold;
+		final boolean prayerWarning = lowPrayerThreshold > 0 && prayerCurrent <= lowPrayerThreshold;
+		if (onlyInCombat && !healthWarning && !prayerWarning && !plugin.isInCombat())
 		{
 			return null;
 		}
@@ -145,8 +163,6 @@ class NumericStatsPlusOverlay extends Overlay
 		int renderIxRight = 0;
 		int renderIxLeft = 0;
 
-		final int healthCurrent = client.getBoostedSkillLevel(Skill.HITPOINTS);
-		final int prayerCurrent = client.getBoostedSkillLevel(Skill.PRAYER);
 		final int healthMax = client.getRealSkillLevel(Skill.HITPOINTS);
 		final int runEnergy = (int) (client.getEnergy() / 100.0);
 		final int specEnergy = client.getVarpValue(VarPlayerID.SA_ENERGY) / 10;
@@ -160,13 +176,18 @@ class NumericStatsPlusOverlay extends Overlay
 		{
 			double healthRatio = Math.min(1.0, (double) healthCurrent / healthMax);
 			Color healthColor = ColorUtil.colorLerp(COLOR_HEALTH_MIN, COLOR_HEALTH_MAX, healthRatio);
+			if (healthWarning)
+			{
+				healthColor = warningColorFor(healthColor);
+			}
 			BufferedImage icon = displayOverload && hasOverload ? itemIcon(ItemID.RAIDS_VIAL_OVERLOAD_STRONG_4) : null;
 			renderStat(graphics, fm, anchor, String.valueOf(healthCurrent), healthColor, icon, healthLeft ? renderIxLeft++ : renderIxRight++, healthLeft);
 		}
 		if (renderPrayer)
 		{
 			BufferedImage icon = displayPoT && hasPoT ? itemIcon(ItemID.RAIDS_VIAL_PRAYER_STRONG_4) : null;
-			renderStat(graphics, fm, anchor, String.valueOf(prayerCurrent), COLOR_PRAYER, icon, prayerLeft ? renderIxLeft++ : renderIxRight++, prayerLeft);
+			Color prayerColor = prayerWarning ? warningColorFor(COLOR_PRAYER) : COLOR_PRAYER;
+			renderStat(graphics, fm, anchor, String.valueOf(prayerCurrent), prayerColor, icon, prayerLeft ? renderIxLeft++ : renderIxRight++, prayerLeft);
 		}
 		if (renderStamina)
 		{
@@ -220,6 +241,16 @@ class NumericStatsPlusOverlay extends Overlay
 			int iconY = baseline - icon.getHeight();
 			OverlayUtil.renderImageLocation(graphics, new Point(iconX, iconY), icon);
 		}
+	}
+
+	// Solid warning color, or blinking between it and the normal color about twice a second.
+	private Color warningColorFor(Color normal)
+	{
+		if (!warningFlash)
+		{
+			return warningColor;
+		}
+		return (System.currentTimeMillis() / 250) % 2 == 0 ? warningColor : normal;
 	}
 
 	private void renderText(Graphics2D graphics, int x, int y, String text, Color color)
@@ -329,6 +360,12 @@ class NumericStatsPlusOverlay extends Overlay
 		this.offsetLeft = config.offsetLeft();
 		this.offsetVertical = config.offsetVertical();
 		this.outlineWidth = config.outlineWidth();
+
+		this.onlyInCombat = config.onlyInCombat();
+		this.lowHealthThreshold = config.lowHealthThreshold();
+		this.lowPrayerThreshold = config.lowPrayerThreshold();
+		this.warningColor = config.warningColor();
+		this.warningFlash = config.warningFlash();
 
 		this.overlayFont = buildFont(config.fontType(), config.fontSize());
 

@@ -1,23 +1,55 @@
 package com.numericstatsplus;
 
 import net.runelite.client.config.Alpha;
-import net.runelite.client.config.Units;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
+import net.runelite.client.config.Units;
 
 import java.awt.*;
 
 @ConfigGroup("numericstatsplus")
 public interface NumericStatsPlusConfig extends Config
 {
+	@ConfigSection(
+			name = "Stats",
+			description = "Which stats and icons to show, and where.",
+			position = 0
+	)
+	String statsSection = "statsSection";
+
+	@ConfigSection(
+			name = "Text",
+			description = "Size, font, outline and position of the numbers.",
+			position = 1
+	)
+	String textSection = "textSection";
+
+	@ConfigSection(
+			name = "Warnings",
+			description = "Highlight HP or prayer when they drop to a level you pick.",
+			position = 2
+	)
+	String warningsSection = "warningsSection";
+
+	@ConfigSection(
+			name = "Colors",
+			description = "Colors of each number.",
+			position = 3,
+			closedByDefault = true
+	)
+	String colorsSection = "colorsSection";
+
+	// ---------- Stats ----------
+
 	@ConfigItem(
 			keyName = "healthPosition",
 			name = "Health position",
 			description = "Where and if to display health.",
-			position = 0
+			position = 0,
+			section = statsSection
 	)
 	default PlayerStatsPositionType healthPosition()
 	{
@@ -28,7 +60,8 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "prayerPosition",
 			name = "Prayer position",
 			description = "Where and if to display prayer.",
-			position = 1
+			position = 1,
+			section = statsSection
 	)
 	default PlayerStatsPositionType prayerPosition()
 	{
@@ -39,7 +72,8 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "runEnergyPosition",
 			name = "Run energy position",
 			description = "Where and if to display run energy.",
-			position = 2
+			position = 2,
+			section = statsSection
 	)
 	default PlayerStatsPositionType runEnergyPosition()
 	{
@@ -50,7 +84,8 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "specPosition",
 			name = "Spec position",
 			description = "Where and if to display spec.",
-			position = 3
+			position = 3,
+			section = statsSection
 	)
 	default PlayerStatsPositionType specPosition()
 	{
@@ -58,10 +93,23 @@ public interface NumericStatsPlusConfig extends Config
 	}
 
 	@ConfigItem(
+			keyName = "onlyInCombat",
+			name = "Only show in combat",
+			description = "Hide the numbers when you have not attacked or been hit for a few seconds. Warnings still show.",
+			position = 4,
+			section = statsSection
+	)
+	default boolean onlyInCombat()
+	{
+		return false;
+	}
+
+	@ConfigItem(
 			keyName = "displayVeng",
 			name = "Display vengeance",
 			description = "Show vengeance on the player model.",
-			position = 4
+			position = 5,
+			section = statsSection
 	)
 	default boolean displayVeng()
 	{
@@ -72,7 +120,8 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "displayStam",
 			name = "Display stamina pot",
 			description = "Show stamina on the player model.",
-			position = 5
+			position = 6,
+			section = statsSection
 	)
 	default boolean displayStam()
 	{
@@ -83,7 +132,8 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "displayOverload",
 			name = "Display overload",
 			description = "Show overload effects on the player model.",
-			position = 6
+			position = 7,
+			section = statsSection
 	)
 	default boolean displayOverload()
 	{
@@ -94,113 +144,15 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "displayPoT",
 			name = "Display PoT",
 			description = "Show prayer over time effects on the player model.",
-			position = 7
+			position = 8,
+			section = statsSection
 	)
 	default boolean displayPoT()
 	{
 		return false;
 	}
 
-	@ConfigItem(
-			keyName = "offsetRight",
-			name = "Offset right",
-			description = "Configures the offset from the player model to draw text right from.",
-			position = 8
-	)
-	default int offsetRight()
-	{
-		return 5;
-	}
-
-	@ConfigItem(
-			keyName = "offsetLeft",
-			name = "Offset left",
-			description = "Configures the offset from the player model to draw text left from.",
-			position = 9
-	)
-	default int offsetLeft()
-	{
-		return 15;
-	}
-
-	@Alpha
-	@ConfigItem(
-			keyName = "maxHealthColor",
-			name = "Max health color",
-			description = "Configures the color for health text when your at max health",
-			position = 10
-	)
-	default Color maxHealthColor()
-	{
-		return Color.green;
-	}
-
-	@Alpha
-	@ConfigItem(
-			keyName = "minHealthColor",
-			name = "Min health color",
-			description = "Configures the color for health text when your at min health",
-			position = 11
-	)
-	default Color minHealthColor()
-	{
-		return Color.red;
-	}
-
-	@Alpha
-	@ConfigItem(
-			keyName = "prayerColor",
-			name = "Prayer color",
-			description = "Configures the color for prayer text",
-			position = 12
-	)
-	default Color prayerColor()
-	{
-		return new Color(50, 200, 200);
-	}
-
-	@Alpha
-	@ConfigItem(
-			keyName = "runEnergyColor",
-			name = "Run energy color",
-			description = "Configures the color for run energy text",
-			position = 13
-	)
-	default Color runEnergyColor()
-	{
-		return new Color(160, 124, 72);
-	}
-
-	@Alpha
-	@ConfigItem(
-			keyName = "staminaBoostedColor",
-			name = "Stamina boosted color",
-			description = "Configures the color for run energy text when boosted",
-			position = 14
-	)
-	default Color staminaBoostedColor()
-	{
-		return new Color(220, 184, 132);
-	}
-
-	@Alpha
-	@ConfigItem(
-			keyName = "specColor",
-			name = "Spec color",
-			description = "Configures the color for special attack text",
-			position = 15
-	)
-	default Color specColor()
-	{
-		return Color.yellow;
-	}
-
-	@ConfigSection(
-			name = "Text",
-			description = "Size, font and outline of the numbers.",
-			position = 16
-	)
-	String textSection = "textSection";
+	// ---------- Text ----------
 
 	@Range(min = 8, max = 64)
 	@Units(Units.PIXELS)
@@ -208,7 +160,7 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "fontSize",
 			name = "Font size",
 			description = "Size of the numbers. Icons scale with it.",
-			position = 17,
+			position = 0,
 			section = textSection
 	)
 	default int fontSize()
@@ -220,7 +172,7 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "fontType",
 			name = "Font",
 			description = "Font used for the numbers.",
-			position = 18,
+			position = 1,
 			section = textSection
 	)
 	default PlayerStatsFontType fontType()
@@ -234,12 +186,36 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "outlineWidth",
 			name = "Outline width",
 			description = "Black outline around the numbers. 0 uses the original drop shadow.",
-			position = 19,
+			position = 2,
 			section = textSection
 	)
 	default int outlineWidth()
 	{
 		return 0;
+	}
+
+	@ConfigItem(
+			keyName = "offsetRight",
+			name = "Offset right",
+			description = "Configures the offset from the player model to draw text right from.",
+			position = 3,
+			section = textSection
+	)
+	default int offsetRight()
+	{
+		return 5;
+	}
+
+	@ConfigItem(
+			keyName = "offsetLeft",
+			name = "Offset left",
+			description = "Configures the offset from the player model to draw text left from.",
+			position = 4,
+			section = textSection
+	)
+	default int offsetLeft()
+	{
+		return 15;
 	}
 
 	@Range(min = -300, max = 300)
@@ -248,11 +224,144 @@ public interface NumericStatsPlusConfig extends Config
 			keyName = "offsetVertical",
 			name = "Offset vertical",
 			description = "Moves the numbers down (positive) or up (negative).",
-			position = 20,
+			position = 5,
 			section = textSection
 	)
 	default int offsetVertical()
 	{
 		return 0;
+	}
+
+	// ---------- Warnings ----------
+
+	@Range(max = 255)
+	@ConfigItem(
+			keyName = "lowHealthThreshold",
+			name = "Low HP at or below",
+			description = "Warn when HP is at or below this number. 0 turns the warning off.",
+			position = 0,
+			section = warningsSection
+	)
+	default int lowHealthThreshold()
+	{
+		return 0;
+	}
+
+	@Range(max = 255)
+	@ConfigItem(
+			keyName = "lowPrayerThreshold",
+			name = "Low prayer at or below",
+			description = "Warn when prayer is at or below this number. 0 turns the warning off.",
+			position = 1,
+			section = warningsSection
+	)
+	default int lowPrayerThreshold()
+	{
+		return 0;
+	}
+
+	@Alpha
+	@ConfigItem(
+			keyName = "warningColor",
+			name = "Warning color",
+			description = "Color of a number while it is in warning.",
+			position = 2,
+			section = warningsSection
+	)
+	default Color warningColor()
+	{
+		return Color.red;
+	}
+
+	@ConfigItem(
+			keyName = "warningFlash",
+			name = "Flash",
+			description = "Blink between the warning color and the normal color instead of staying solid.",
+			position = 3,
+			section = warningsSection
+	)
+	default boolean warningFlash()
+	{
+		return true;
+	}
+
+	// ---------- Colors ----------
+
+	@Alpha
+	@ConfigItem(
+			keyName = "maxHealthColor",
+			name = "Max health color",
+			description = "Configures the color for health text when your at max health",
+			position = 0,
+			section = colorsSection
+	)
+	default Color maxHealthColor()
+	{
+		return Color.green;
+	}
+
+	@Alpha
+	@ConfigItem(
+			keyName = "minHealthColor",
+			name = "Min health color",
+			description = "Configures the color for health text when your at min health",
+			position = 1,
+			section = colorsSection
+	)
+	default Color minHealthColor()
+	{
+		return Color.red;
+	}
+
+	@Alpha
+	@ConfigItem(
+			keyName = "prayerColor",
+			name = "Prayer color",
+			description = "Configures the color for prayer text",
+			position = 2,
+			section = colorsSection
+	)
+	default Color prayerColor()
+	{
+		return new Color(50, 200, 200);
+	}
+
+	@Alpha
+	@ConfigItem(
+			keyName = "runEnergyColor",
+			name = "Run energy color",
+			description = "Configures the color for run energy text",
+			position = 3,
+			section = colorsSection
+	)
+	default Color runEnergyColor()
+	{
+		return new Color(160, 124, 72);
+	}
+
+	@Alpha
+	@ConfigItem(
+			keyName = "staminaBoostedColor",
+			name = "Stamina boosted color",
+			description = "Configures the color for run energy text when boosted",
+			position = 4,
+			section = colorsSection
+	)
+	default Color staminaBoostedColor()
+	{
+		return new Color(220, 184, 132);
+	}
+
+	@Alpha
+	@ConfigItem(
+			keyName = "specColor",
+			name = "Spec color",
+			description = "Configures the color for special attack text",
+			position = 5,
+			section = colorsSection
+	)
+	default Color specColor()
+	{
+		return Color.yellow;
 	}
 }
