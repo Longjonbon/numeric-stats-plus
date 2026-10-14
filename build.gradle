@@ -30,3 +30,11 @@ tasks.withType(JavaCompile) {
 	options.encoding = 'UTF-8'
 	options.release.set(11)
 }
+
+// Opens a RuneLite dev client with Player Numeric Stats loaded
+task run(type: JavaExec) {
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.playerstats.PlayerNumericStatsPluginTest'
+	jvmArgs '-ea'
+	args '--developer-mode'
+}
