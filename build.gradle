@@ -36,5 +36,5 @@ task run(type: JavaExec) {
 	classpath = sourceSets.test.runtimeClasspath
 	mainClass = 'com.numericstatsplus.NumericStatsPlusPluginTest'
 	jvmArgs '-ea'
-	args '--developer-mode'
+	args '--developer-mode', '--profile=dev'
 }
